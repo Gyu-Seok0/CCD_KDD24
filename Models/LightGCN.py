@@ -51,8 +51,8 @@ class LightGCN(nn.Module):
 		u_0 = self.user_emb(self.user_list)	# num. user x dim
 		i_0 = self.item_emb(self.item_list)
 
-		i_1 = torch.spmm(dropout_A_t, u_0)		# 유저 평균 -> 아이템
-		u_1 = torch.spmm(dropout_A, i_0)		# 아이템 평균 -> 유저
+		i_1 = torch.spmm(dropout_A_t, u_0)		
+		u_1 = torch.spmm(dropout_A, i_0)		
 		
 		i_2 = torch.spmm(dropout_A_t, u_1)
 		u_2 = torch.spmm(dropout_A, i_1)		
@@ -91,8 +91,8 @@ class LightGCN(nn.Module):
 		u_0 = self.user_emb(self.user_list)	# num. user x dim
 		i_0 = self.item_emb(self.item_list)
 
-		i_1 = torch.spmm(self.A_T, u_0)		# 유저 평균 -> 아이템
-		u_1 = torch.spmm(self.A, i_0)		# 아이템 평균 -> 유저
+		i_1 = torch.spmm(self.A_T, u_0)		#
+		u_1 = torch.spmm(self.A, i_0)		#
 		
 		user = (u_0 + u_1) / 2
 		item =  (i_0 + i_1) / 2
