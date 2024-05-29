@@ -28,8 +28,9 @@ git clone https://github.com/Gyu-Seok0/ccd.git
 cd ccd
 
 # Use conda
-conda env create -f env.yml
+conda env create -n ccd python=3.9.0
 conda activate ccd
+conda env update --file env.yml --prune
 ```
 
 ### 5. Usage
@@ -44,7 +45,7 @@ Stage2. Continual update of student
 python -u S_update.py --d Yelp -m LightGCN_1 --tt 1 --rl --US --UP --ab 50 --ss 1 --ps 0 --sw 1.0 --pw 0.1 --max_epoch 10
 
 Stage3: Teacher update
-    ** 3-1 Each Teacher update **
+    ** 3-1 Each teacher update **
     python -u T_update.py --d Yelp --student LightGCN_1 --teacher LightGCN_0 --tt 1 --rl --UCL --US --UP --ss 1 --ps 3 --cs 5 --max_epoch 10
 
     python -u T_update.py --d Yelp --student LightGCN_1 --teacher LightGCN_1 --tt 1 --rl --UCL --US --UP --ss 1 --ps 3 --cs 5 --max_epoch 10
@@ -55,7 +56,7 @@ Stage3: Teacher update
 
     python -u T_update.py --d Yelp --student LightGCN_1 --teacher LightGCN_4 --tt 1 --rl --UCL --US --UP --ss 1 --ps 3 --cs 5 --max_epoch 10
 
-    ** 3-2 Teacher System Ensemble **
+    ** 3-2 Teacher system ensemble **
     python -u Ensemble.py --d Yelp --tt 1
 ```
 
