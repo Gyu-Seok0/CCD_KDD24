@@ -11,14 +11,11 @@ def get_two_hop_emb_total(R, start_new_id, base_emb, dim, topk = 5):
     
     target_size = R.size(0)
     two_hop_mat = torch.sparse.mm(R, R.T).to_dense()[:, :start_new_id] # U x before U
-    two_hop_mat = torch.where(two_hop_mat > 0, 1, 0)
-    
-    print("two_hop_mat",two_hop_mat.shape)
-    
+    two_hop_mat = torch.where(two_hop_mat > 0, 1, 0)    
     num_two_hop_mat_interaction = two_hop_mat.sum(1)
     
     Frequency = torch.sparse.sum(R, dim = 1).to_dense()[:start_new_id] # |before User(Item)|
-    Frequency_sort = torch.argsort(Frequency, descending = False) # rank의 값이 클수록 interaction이 많음
+    Frequency_sort = torch.argsort(Frequency, descending = False)
     Frequency_rank = torch.zeros_like(Frequency_sort)
     for rank, id in enumerate(Frequency_sort.tolist()):
         Frequency_rank[id] = rank
@@ -60,10 +57,9 @@ def get_two_hop_emb(R, start_id, end_id, base_emb, dim, topk = 5):
     
     Frequency = torch.sparse.sum(R, dim = 1).to_dense() # 1-D array
     Frequency = Frequency[:start_id] # Before_U
-    Frequency_argsort = torch.argsort(Frequency, descending = False) # 오름차순(작은 것 부터..), user의 index
+    Frequency_argsort = torch.argsort(Frequency, descending = False)
     Frequency_Rank = torch.zeros_like(Frequency_argsort, device = Frequency_argsort.device)
     for rank, u_id in enumerate(Frequency_argsort):
-        #if u_id < start_id:
         Frequency_Rank[u_id] = rank
     
     two_hop_rank_mat = two_hop_mat * Frequency_Rank
@@ -89,54 +85,6 @@ def get_two_hop_emb(R, start_id, end_id, base_emb, dim, topk = 5):
  
     return new_user_embs
         
-
-# def get_two_hop_emb(R, start_id, end_id, base_emb, dim, topk = 5):
-    
-#     print("here3")   
-
-#     two_hop_mat = torch.sparse.mm(R, R.T) # U x U
-#     Frequency = torch.sparse.sum(R, dim = 1).to_dense()
-#     Frequency_Rank = torch.argsort(Frequency, descending = True)
-    
-    
-    
-    
-#     print("Frequency_Rank", Frequency_Rank)
-    
-#     print("here4")   
-
-        
-#     new_emb = []
-#     for id in range(start_id, end_id + 1):
-#         two_hop_row = two_hop_mat[id]
-#         id_emb = torch.zeros(dim, device = R.device)
-        
-#         cnt = 0
-        
-#         queue = deque(Frequency_Rank.tolist())
-#         candidate_list = []
-        
-#         while queue:
-#             target_id = queue.popleft()
-#             if target_id > start_id:
-#                 continue
-            
-#             if two_hop_row[target_id] >= 1:
-#                 id_emb += base_emb[target_id]
-#                 cnt += 1
-#                 if cnt >= topk:
-#                     break
-#             else:
-#                 candidate_list.append(target_id)
-        
-#         if cnt < topk:
-#             id_emb += torch.sum(base_emb[candidate_list[:topk - cnt]], dim = 0)
-#         id_emb = id_emb / topk
-        
-#         new_emb.append(id_emb)
-#     print("here5")   
-#     return torch.stack(new_emb)
-
 def get_common_ids(before_ids, present_ids):
     common_ids_mask = torch.eq(before_ids.unsqueeze(0), present_ids.unsqueeze(1)).any(dim = 0)
     common_ids = before_ids[common_ids_mask]
@@ -157,7 +105,6 @@ class PIW_LWCKD(nn.Module):
         self.base_model = base_model
         
         # Model2: PIW Module
-        # if self.PIW_flag:
         self.CSTM = nn.Parameter(torch.randn(num_cluster, dim, dim)) # cluster-specific transformation matrix
         self.PSV = PIW_State_Vector(num_cluster, dim) # MLP for PIW State Vector
         self.kl_loss = nn.KLDivLoss(reduction = "batchmean")
@@ -268,10 +215,6 @@ class PIW_LWCKD(nn.Module):
             
             UI_loss = UI_loss * batch_PIW
             UU_loss = UU_loss * batch_PIW
-                
-            # 모든 user의 piw가 안나올 수도 있음 -> dataloder에서 등장하는 user는 기본적으로 interaction이 존재하는 train_dict상에 user이다. 그러나 train/test/valid split되면서 user가 갖는 interaction의 개수가 줄어들게 되고, 종국에는 그것이 없는 경우도 발생한다. 따라서 user의 piw가 없는 경우에 대해서도 대비를 해야한다.
-            # for idx, u in enumerate(common_batch_user):
-            #     self.user_PIW[u.item()] = batch_PIW[idx].item()
             
         UI_loss = -torch.mean(UI_loss)
         IU_loss = -torch.mean(IU_loss)
@@ -286,6 +229,12 @@ class PIW_LWCKD(nn.Module):
         return mask
     
     def LWCKD(self, target_emb, neighbor_emb, rating_mat):
+        
+        exp = torch.exp(target_emb @ neighbor_emb.t() / (self.temperature)) # We recommend you to increase the temperature > 1 if "nan" occurs. 
+        log = torch.log(exp / exp.sum(dim = 1, keepdim = True))
+        loss = torch.divide(torch.sum(log * rating_mat, dim = 1), torch.sum(rating_mat, dim = 1) + 1e-8) # interaction이 있는 애들만 고려.
+
+        # DEBUG
         nan_flag = False
         if torch.isnan(target_emb).sum() > 0:
             print("[NAN] target_emb")
@@ -295,12 +244,10 @@ class PIW_LWCKD(nn.Module):
             print("[NAN] neighbor_emb")
             nan_flag = True
 
-        exp = torch.exp(target_emb @ neighbor_emb.t() / (self.temperature)) # nan을 해결하는 방법은 temperature scaling (temperature > 1)..
         if torch.isnan(exp).sum() > 0:
             print("[NAN] exp")
             nan_flag = True
 
-        log = torch.log(exp / exp.sum(dim = 1, keepdim = True)) # handling nan
         if torch.isnan(log).sum() > 0:
             print("[NAN] log")
             nan_flag = True
@@ -308,10 +255,7 @@ class PIW_LWCKD(nn.Module):
         if nan_flag:
             print("[TYPE]", type)
             raise ValueError("NAN")
-        
-        #loss = torch.mean(log * rating_mat, dim = 1) -> 이렇게 하면 0인 값들도 다 평균에 분모로 카운팅이 되서.. 값이 매우 작아짐..
-        loss = torch.divide(torch.sum(log * rating_mat, dim = 1), torch.sum(rating_mat, dim = 1) + 1e-8) # interaction이 있는 애들만 고려.
-        
+                
         return loss
 
     def get_PIW(self, masked_batch_user, origin_masked_batch_user):
@@ -356,30 +300,7 @@ class PIW_LWCKD(nn.Module):
         
         else:
             print(f"\n[No_Random Initatlized Embedding(Our Method)] topk = {topk}")
-            # end_newuser_id, end_newitem_id = R.shape
-            # end_newuser_id -= 1
-            # end_newitem_id -= 1
-            # start_newuser_id = end_newuser_id - num_new_user + 1
-            # start_newitem_id = end_newitem_id - num_new_item + 1
-            
-            # user_interactions = R[:, :start_newitem_id]
-            # Norm_Mat_for_new_user = user_interactions / (user_interactions.sum(dim = 1, keepdims = True) + 1e-8)
-            # one_hop_emb_for_user = Norm_Mat_for_new_user @ item_emb
-            
-            # item_interactions = R.T[:, :start_newuser_id]
-            # Norm_Mat_for_new_item = item_interactions / (item_interactions.sum(dim = 1, keepdims = True) + 1e-8)
-            # one_hop_emb_for_item = Norm_Mat_for_new_item @ user_emb
-            
-            # R = R.to_sparse()
-            # two_hop_emb_for_user = get_two_hop_emb_total(R, start_newuser_id, user_emb, self.dim)
-            # two_hop_emb_for_item = get_two_hop_emb_total(R.T, start_newitem_id, item_emb, self.dim)
-            
-            # new_user_embedding = nn.Parameter((one_hop_emb_for_user + two_hop_emb_for_user) / 2)#.to(self.gpu) # num_new_user x dim
-            # new_item_embedding = nn.Parameter((one_hop_emb_for_item + two_hop_emb_for_item) / 2)#.to(self.gpu) # num_new_item x dim
-        
-            ''' new users(items)만 고려'''
-            #R = R.to(self.gpu)
-            
+
             end_newuser_id, end_newitem_id = R.shape
             end_newuser_id -= 1
             end_newitem_id -= 1
@@ -448,20 +369,6 @@ class PIW_LWCKD(nn.Module):
         self.base_model.user_emb.weight.requires_grad = True
         self.base_model.item_emb.weight.requires_grad = True
         
-
-
-        
-        # making and concatenating the new embedding with existing embedding
-        # print("Random Embedding")
-        # new_user_embedding = nn.Parameter(torch.randn(num_new_user, self.dim)).to(self.gpu)
-        # new_item_embedding = nn.Parameter(torch.randn(num_new_item, self.dim)).to(self.gpu)
-        
-        # nn.init.normal_(new_user_embedding, mean = 0, std = 0.01)
-        # nn.init.normal_(new_item_embedding, mean = 0, std = 0.01)
-        
-        # self.base_model.user_emb.weight = nn.Parameter(torch.cat([self.base_model.user_emb.weight, new_user_embedding]))
-        # self.base_model.item_emb.weight = nn.Parameter(torch.cat([self.base_model.item_emb.weight, new_item_embedding]))
-
         # update user/item count
         self.base_model.user_count += num_new_user
         self.base_model.item_count += num_new_item
@@ -545,7 +452,6 @@ class CL_VAE(nn.Module):
             user_output, _, _, _ = output
             common_batch_user  = get_common_ids(self.common_pos_user_ids, mini_batch['user']) # common_pos_user_ids에서 user는 (common_user + common_item에 의해 선택된 user)의 집합 -> PIW값이 존재하지 않을 수 있다.
 
-            
             for u in common_batch_user:
                 
                 i = torch.tensor(self.common_interaction[u.item()]).to(self.gpu)
@@ -588,9 +494,6 @@ class CL_VAE(nn.Module):
         self.base_model.user_count += num_new_user
         self.base_model.item_count += num_new_item
         
-        # self.before_base_model = deepcopy(self.base_model)
-        # self.before_base_model.requires_grad_(False)
-        
         e_extra_layer = nn.Linear(num_new_item, self.dim).to(self.gpu) # Dim x items
         d_extra_layer = nn.Linear(self.dim, num_new_item).to(self.gpu)
         nn.init.xavier_normal_(e_extra_layer.weight.data)
@@ -611,7 +514,6 @@ class CL_VAE(nn.Module):
         self.base_model.decoder.bias = d_bias
         
         del e_extra_layer, d_extra_layer, e_weight, e_bias, d_weight, d_bias
-        
         
 class CL_VAE_expand(nn.Module):
     def __init__(self, base_model, dim, gpu, CL_flag = True):
@@ -658,27 +560,6 @@ class CL_VAE_expand(nn.Module):
             total_kl_loss /= len(common_batch_user)
             
         return base_loss, total_kl_loss
-                
-        #     for u in common_batch_user:
-                
-        #         i = torch.tensor(self.common_interaction[u.item()]).to(self.gpu)
-        #         indices = torch.where(mini_batch['user'] == u)[0].to(self.gpu)
-                
-        #         before_dist = self.before_score_mat[u.detach().cpu()][i.detach().cpu()].to(self.gpu)
-        #         present_dist = user_output[indices].squeeze()[i]
-                
-        #         kl_loss = self.kl_loss(present_dist.log() + 1e-8, before_dist.log() + 1e-8)
-        #         if self.task_user_piw_mean and u.item() in self.task_user_piw_mean.keys():
-        #             piw_value = torch.tensor(self.task_user_piw_mean[u.item()]).to(self.gpu)
-        #         else:
-        #             piw_value = torch.tensor(1.0).to(self.gpu)
-                    
-        #         kl_loss = kl_loss * piw_value
-        #         total_kl_loss += kl_loss
-            
-        #     total_kl_loss /= len(common_batch_user)
-        
-        # return base_loss, total_kl_loss
         
     def update(self, p_total_user, p_total_item, b_total_user, b_total_item, common_interaction, before_score_mat):
         
@@ -689,7 +570,7 @@ class CL_VAE_expand(nn.Module):
         self.b_total_item = b_total_item
         
         if self.CL_flag:
-            self.common_interaction = common_interaction # # {u1:{i1, i2..}, }
+            self.common_interaction = common_interaction # {u1:{i1, i2..}, }
             self.common_pos_user_ids = torch.tensor(list(self.common_interaction.keys())).to(self.gpu) # [u1, u2, ...]
         
         self.before_score_mat = before_score_mat.to(self.gpu)
@@ -697,4 +578,3 @@ class CL_VAE_expand(nn.Module):
         
         # update new info
         self.base_model.user_count = p_total_user
-        #self.base_model.item_count = p_total_item -> max_total_item으로 이미 setup.

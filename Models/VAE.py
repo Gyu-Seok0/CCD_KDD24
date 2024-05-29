@@ -1,7 +1,6 @@
-import torch.nn.functional as F
-import torch.nn as nn
 import torch
-from pdb import set_trace as bp
+import torch.nn as nn
+import torch.nn.functional as F
 
 class VAE(nn.Module):
     def __init__(self, user_count, item_count, dim, gpu, total_anneal_steps=200000, max_anneal=0.2):
