@@ -1,5 +1,5 @@
 # Continual Collaborative Distillation for Recommender System (CCD)
-This repository provides the source code of "Continual Collaborative Distillation for Recommender System (CCD)" accepted in KDD'24 as a research paper.
+This repository provides the source code of [Continual Collaborative Distillation for Recommender System](https://arxiv.org/abs/2405.19046) (CCD) accepted in KDD'24 as a research paper.
 
 ### 1. Overview
 * This paper introduces an integrated framework combining knowledge distillation and continual learning for practical recommender systems. 
