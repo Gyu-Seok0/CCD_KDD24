@@ -28,9 +28,8 @@ git clone https://github.com/Gyu-Seok0/ccd.git
 cd ccd
 
 # Use conda
-conda env create -n ccd python=3.9.0
+conda env create -f env.yml
 conda activate ccd
-conda env update --file env.yml --prune
 ```
 
 ### 5. Usage
