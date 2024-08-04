@@ -20,7 +20,7 @@ We use the [Gowalla](https://snap.stanford.edu/data/loc-Gowalla.html) and [Yelp]
 
 
 ### 4. Installation
-The code is written in Python 3.9.0 (Details see env.yml). To install the required packages, follow these steps:
+The code is written in Python 3.10.4 (see env.yml for details), using CUDA 11.7, pandas 1.5.3, and torch 1.13.1. To install the required packages, follow these steps:
 
 ```sh
 # Clone the repository
@@ -60,7 +60,7 @@ Stage3: Teacher update
 ```
 
 ### 6. Pretrained Weights
-Due to their large size, we provide the weights of pretrained teacher and student models for Yelp through another file-sharing system: [Google Drive link]( https://drive.google.com/drive/folders/14raimoKJrnhNv5a7g5XTSgbuLLf1F27y?usp=drive_link).
+Due to their large size, we provide the weights of pretrained teacher and student models only for **Yelp** through another file-sharing system: [Google Drive link](https://drive.google.com/file/d/1F_2tSOAbHtABnqDxeZIrvkuVriXb32N4/view?usp=sharing).
 
 ### 7. Directory
 ```
