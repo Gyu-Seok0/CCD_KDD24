@@ -157,7 +157,7 @@ def get_teacher_model(model_type, b_total_user, b_total_item, b_R, task_idx, max
             T_score_mat = pth["score_mat"].detach().cpu()
             T_sorted_mat = to_np(torch.topk(T_score_mat, k = 1000).indices)
             T_base_weight = pth["best_model"] # LightGCN_0
-            
+                        
             T_base_model = eval(model_type)(*model_args)
             T_base_model.load_state_dict(T_base_weight)
     else:    
@@ -167,7 +167,9 @@ def get_teacher_model(model_type, b_total_user, b_total_item, b_R, task_idx, max
         T_score_mat = pth["score_mat"].detach().cpu()
         T_sorted_mat = to_np(torch.topk(T_score_mat, k = 1000).indices)
         T_weight = pth["best_model"] # LightGCN_0
-        
+    
+        T_base_model = eval(model_type)(*model_args)
+
     if model_type in ["BPR", "LightGCN"]:
         Teacher = PIW_LWCKD(T_base_model, 
                             LWCKD_flag = True, PIW_flag = True,
@@ -188,7 +190,7 @@ def get_teacher_model(model_type, b_total_user, b_total_item, b_R, task_idx, max
             print("Teacher's weight loading Fail!")
             pass
     
-    return Teacher, T_sorted_mat
+    return Teacher, T_score_mat, T_sorted_mat
 
 def forward_multi_users(user_emb, item_emb, batch_users, batch_item):
     """ Calculates rating scores given a item and multi users"""
@@ -427,8 +429,9 @@ def get_model(before_total_user, before_total_item, b_SNM, gpu, args, model_type
     
     return model
     
+#def get_replay_learning_rank_dataset(T_rank_mat, rank_mat, sig_mat, args, num_replay_learning_sample):
 def get_replay_learning_rank_dataset(T_rank_mat, rank_mat, sig_mat, args, num_replay_learning_sample):
-    
+
     # Sampling
     user_size, item_size = rank_mat.shape
     prob_mat_for_replay_learning = torch.exp((T_rank_mat[:user_size, :item_size] - rank_mat) * args.eps)
@@ -455,7 +458,7 @@ def get_total_replay_learning_dataset_Teacher(T_score_mat, S_score_mat, S_rank_m
     S_replay_learning_dataset, P_replay_learning_dataset, CL_replay_learning_dataset = [], [], []
     
     if S_score_mat is not None:
-        S_replay_learning_dataset = get_replay_learning_rank_dataset(T_rank_mat, S_rank_mat, S_score_mat, args, args.S_sample)
+        S_replay_learning_dataset = get_replay_learning_rank_dataset(T_rank_mat, S_rank_mat,  S_score_mat, args, args.S_sample)
         
     if P_score_mat is not None:
         P_replay_learning_dataset = get_replay_learning_rank_dataset(T_rank_mat, P_rank_mat, P_score_mat, args, args.P_sample)
@@ -471,8 +474,10 @@ def get_total_replay_learning_dataset_Teacher(T_score_mat, S_score_mat, S_rank_m
     print(f"\tTotal_replay_learning_dataset Before Filtering = {len(replay_learning_dataset)}")
     
     #max_dict = defaultdict(int)
-    #for u, i, r in replay_learning_dataset:
-    #    max_dict[(u, i)] = max(max_dict[(u, i)], r)
+    # for u, i, r in replay_learning_dataset:
+    #     max_dict[(u, i)] = max(max_dict[(u, i)], r)
+    
+    max_dict = dict()
     for u, i, r in replay_learning_dataset:
         # Ensure (u, i) is a valid tuple before updating max_dict
         if isinstance(u, int) and isinstance(i, int):
@@ -508,9 +513,11 @@ def get_total_replay_learning_dataset(W_score_mat, S_rank_mat, S_sig_mat, P_rank
     replay_learning_dataset = S_replay_learning_dataset + P_replay_learning_dataset
     print(f"\tTotal_replay_learning_dataset Before Filtering = {len(replay_learning_dataset)}")
     
-    #max_dict = defaultdict(int)
-    #for u, i, r in replay_learning_dataset:
-    #    max_dict[(u, i)] = max(max_dict[(u, i)], r)
+    # max_dict = defaultdict(int)
+    # for u, i, r in replay_learning_dataset:
+    #     max_dict[(u, i)] = max(max_dict[(u, i)], r)
+    
+    max_dict = dict()
     for u, i, r in replay_learning_dataset:
         # Ensure (u, i) is a valid tuple before updating max_dict
         if isinstance(u, int) and isinstance(i, int):
