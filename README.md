@@ -110,12 +110,11 @@ Due to their large size, we provide the weights of pretrained teacher and studen
 If you use this code or our method in your research, please cite our paper:
 
 ```bibtex
-@misc{lee2024continual,
-      title={Continual Collaborative Distillation for Recommender System}, 
-      author={Gyuseok Lee and SeongKu Kang and Wonbin Kweon and Hwanjo Yu},
-      year={2024},
-      eprint={2405.19046},
-      archivePrefix={arXiv},
-      primaryClass={cs.IR}
+@inproceedings{lee2024continual,
+  title={Continual Collaborative Distillation for Recommender System},
+  author={Lee, Gyuseok and Kang, SeongKu and Kweon, Wonbin and Yu, Hwanjo},
+  booktitle={Proceedings of the 30th ACM SIGKDD Conference on Knowledge Discovery and Data Mining},
+  pages={1495--1505},
+  year={2024}
 }
 ```
