@@ -2,6 +2,33 @@ import numpy as np
 import torch
 import torch.utils.data as data
 
+class implicit_CF_dataset_test(data.Dataset):
+    def __init__(self, user_count, item_count, valid_mat, test_mat, batch_size=64):
+        super(implicit_CF_dataset_test, self).__init__()
+
+        self.user_count = user_count
+        self.item_count = item_count
+        self.user_list = torch.LongTensor([i for i in range(user_count)])
+
+        self.valid_mat = valid_mat
+        self.test_mat = test_mat
+        self.batch_size = batch_size
+
+        self.batch_start = 0
+
+    def get_next_batch_users(self):
+        batch_start = self.batch_start
+        batch_end = self.batch_start + self.batch_size
+
+        # last batch
+        if batch_end >= self.user_count:
+            batch_end = self.user_count
+            self.batch_start = 0
+            return self.user_list[batch_start: batch_end], True
+        else:
+            self.batch_start += self.batch_size
+            return self.user_list[batch_start: batch_end], False
+
 class implicit_CF_dataset(data.Dataset):
     def __init__(self, user_count, item_count, rating_mat, num_ns, interactions, RRD_interesting_items = None):
         super(implicit_CF_dataset, self).__init__()
